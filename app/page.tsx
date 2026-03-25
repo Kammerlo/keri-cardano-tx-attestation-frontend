@@ -263,6 +263,9 @@ export default function Home() {
     // Mark identifier completed and clear all downstream steps
     // (so re-verification from a later step resets the attestation flow)
     setCompletedSteps(new Set([WorkflowStep.CONNECT_WALLET, WorkflowStep.INPUT_IDENTIFIER]));
+
+    // Brief delay so the user can see the "Verified" badge before advancing
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     setCurrentStep(WorkflowStep.INPUT_TX_HASH);
     setSuccess('Identifier verified! Now enter the transaction hash.');
   };
