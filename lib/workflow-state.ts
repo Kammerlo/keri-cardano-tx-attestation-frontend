@@ -98,7 +98,6 @@ export function validateWalletConnection(
  */
 export function validateTransactionInput(
   txHash: string,
-  blockfrostApiKey: string,
   metadata: any
 ): StepValidation {
   if (!txHash) {
@@ -108,15 +107,7 @@ export function validateTransactionInput(
       error: 'Transaction hash is required',
     };
   }
-  
-  if (!blockfrostApiKey) {
-    return {
-      isValid: false,
-      canProceed: false,
-      error: 'Blockfrost API key is required',
-    };
-  }
-  
+
   if (!metadata) {
     return {
       isValid: false,

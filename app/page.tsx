@@ -7,9 +7,8 @@ import { WorkflowStep, TransactionMetadata } from '@/lib/types';
 import { getSignifyUrl } from '@/lib/config';
 import {
   CardanoNetwork,
+  EXPLORER_URLS,
   getCurrentNetworkConfig,
-  getBlockfrostApiKey,
-  saveBlockfrostApiKey
 } from '@/lib/network-config';
 import { getPreviousStep, isStepCompleted } from '@/lib/workflow-state';
 import NetworkConfiguration from '@/components/NetworkConfiguration';
@@ -40,8 +39,6 @@ export default function Home() {
   // Network configuration
   const [network, setNetwork] = useState<CardanoNetwork>('mainnet');
   const [blockfrostUrl, setBlockfrostUrl] = useState('');
-  const [blockfrostApiKey, setBlockfrostApiKey] = useState('');
-  const [explorerUrl, setExplorerUrl] = useState('');
 
   const defaultSignifyUrl = getSignifyUrl();
 
@@ -50,8 +47,6 @@ export default function Home() {
     const config = getCurrentNetworkConfig();
     setNetwork(config.network);
     setBlockfrostUrl(config.blockfrostUrl);
-    setBlockfrostApiKey(config.blockfrostApiKey);
-    setExplorerUrl(config.explorerUrl);
   }, []);
 
   // Wallet state
@@ -134,13 +129,9 @@ export default function Home() {
   const handleNetworkConfigChange = (config: {
     network: CardanoNetwork;
     blockfrostUrl: string;
-    blockfrostApiKey: string;
-    explorerUrl: string;
   }) => {
     setNetwork(config.network);
     setBlockfrostUrl(config.blockfrostUrl);
-    setBlockfrostApiKey(config.blockfrostApiKey);
-    setExplorerUrl(config.explorerUrl);
     setSuccess('Network configuration updated successfully!');
   };
 
@@ -169,21 +160,12 @@ export default function Home() {
       setLoading(true);
       setError('');
 
-      if (!blockfrostApiKey) {
-        throw new Error('Please configure Blockfrost API key in network settings');
-      }
-
       if (!txHash) {
         throw new Error('Please provide transaction hash');
       }
 
       // Fetch JSON metadata for display and transaction building
-      const jsonResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata`, {
-        method: 'GET',
-        headers: {
-          'project_id': blockfrostApiKey,
-        },
-      });
+      const jsonResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata`);
 
       if (!jsonResponse.ok) {
         const errorData = await jsonResponse.json().catch(() => ({}));
@@ -197,12 +179,7 @@ export default function Home() {
       }
 
       // Fetch CBOR metadata for hash calculation
-      const cborResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata/cbor`, {
-        method: 'GET',
-        headers: {
-          'project_id': blockfrostApiKey,
-        },
-      });
+      const cborResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata/cbor`);
 
       if (!cborResponse.ok) {
         const errorData = await cborResponse.json().catch(() => ({}));
@@ -263,6 +240,9 @@ export default function Home() {
     // Mark identifier completed and clear all downstream steps
     // (so re-verification from a later step resets the attestation flow)
     setCompletedSteps(new Set([WorkflowStep.CONNECT_WALLET, WorkflowStep.INPUT_IDENTIFIER]));
+
+    // Brief delay so the user can see the "Verified" badge before advancing
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     setCurrentStep(WorkflowStep.INPUT_TX_HASH);
     setSuccess('Identifier verified! Now enter the transaction hash.');
   };
@@ -376,10 +356,6 @@ export default function Home() {
         throw new Error('Wallet not connected or metadata not ready');
       }
 
-      if (!blockfrostApiKey) {
-        throw new Error('Blockfrost API key not configured');
-      }
-
       // Get wallet address and UTxOs
       const usedAddresses = await walletApi.getUsedAddresses();
       const changeAddress = await walletApi.getChangeAddress();
@@ -396,7 +372,7 @@ export default function Home() {
       }
 
       // Initialize Blockfrost provider
-      const blockfrostProvider = new BlockfrostProvider(blockfrostApiKey);
+      const blockfrostProvider = new BlockfrostProvider(blockfrostUrl);
 
       // Build transaction with MeshTxBuilder
       const meshTxBuilder = new MeshTxBuilder({
@@ -491,7 +467,7 @@ export default function Home() {
         {/* Left: Cardano logo */}
         <div className="flex items-center gap-2">
           <img src="/cardano-logo-white.png" alt="Cardano" className="h-8 w-auto" />
-          <a href="https://github.com/cardano-foundation/CIPs/tree/master/CIP-0170" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+          <a href="https://cips.cardano.org/cip/CIP-0170" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
             <Badge variant="outline" className="bg-brand-primary/10 text-brand-primary border-brand-primary/20 text-xs font-semibold hover:bg-brand-primary/20 transition-colors">
               CIP-0170
             </Badge>
@@ -908,7 +884,7 @@ export default function Home() {
                   </div>
 
                   <a
-                    href={`${explorerUrl}/transaction/${publishedTxHash}`}
+                    href={`${EXPLORER_URLS[network]}/transaction/${publishedTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center w-full h-11 rounded-lg border border-brand-secondary/30 text-brand-secondary text-sm font-semibold hover:bg-brand-secondary/10 transition-all duration-200 gap-2"
