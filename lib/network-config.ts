@@ -5,13 +5,14 @@ export type CardanoNetwork = 'mainnet' | 'preprod' | 'preview';
 export interface NetworkConfig {
   network: CardanoNetwork;
   blockfrostUrl: string;
+  blockfrostApiKey: string;
 }
 
 // Default network configurations
 export const DEFAULT_NETWORKS: Record<CardanoNetwork, NetworkConfig> = {
-  mainnet: { network: 'mainnet', blockfrostUrl: process.env.NEXT_PUBLIC_BLOCKFROST_URL_MAINNET! },
-  preprod: { network: 'preprod', blockfrostUrl: process.env.NEXT_PUBLIC_BLOCKFROST_URL_PREPROD! },
-  preview: { network: 'preview', blockfrostUrl: process.env.NEXT_PUBLIC_BLOCKFROST_URL_PREVIEW! },
+  mainnet: { network: 'mainnet', blockfrostUrl: process.env.NEXT_PUBLIC_BLOCKFROST_URL_MAINNET!, blockfrostApiKey: '' },
+  preprod: { network: 'preprod', blockfrostUrl: process.env.NEXT_PUBLIC_BLOCKFROST_URL_PREPROD!, blockfrostApiKey: '' },
+  preview: { network: 'preview', blockfrostUrl: process.env.NEXT_PUBLIC_BLOCKFROST_URL_PREVIEW!, blockfrostApiKey: '' },
 };
 
 export const EXPLORER_URLS: Record<CardanoNetwork, string> = {
@@ -59,7 +60,7 @@ export function saveNetworkConfig(config: NetworkConfig): void {
 export function getCurrentNetworkConfig(): NetworkConfig {
   const stored = getStoredNetworkConfig();
   const network = stored?.network ?? 'mainnet';
-  return { ...DEFAULT_NETWORKS[network] };
+  return { ...DEFAULT_NETWORKS[network], blockfrostApiKey: stored?.blockfrostApiKey ?? '' };
 }
 
 /**

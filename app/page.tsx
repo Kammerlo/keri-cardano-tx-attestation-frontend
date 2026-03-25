@@ -39,6 +39,7 @@ export default function Home() {
   // Network configuration
   const [network, setNetwork] = useState<CardanoNetwork>('mainnet');
   const [blockfrostUrl, setBlockfrostUrl] = useState('');
+  const [blockfrostApiKey, setBlockfrostApiKey] = useState('');
 
   const defaultSignifyUrl = getSignifyUrl();
 
@@ -47,6 +48,7 @@ export default function Home() {
     const config = getCurrentNetworkConfig();
     setNetwork(config.network);
     setBlockfrostUrl(config.blockfrostUrl);
+    setBlockfrostApiKey(config.blockfrostApiKey);
   }, []);
 
   // Wallet state
@@ -129,9 +131,11 @@ export default function Home() {
   const handleNetworkConfigChange = (config: {
     network: CardanoNetwork;
     blockfrostUrl: string;
+    blockfrostApiKey: string;
   }) => {
     setNetwork(config.network);
     setBlockfrostUrl(config.blockfrostUrl);
+    setBlockfrostApiKey(config.blockfrostApiKey);
     setSuccess('Network configuration updated successfully!');
   };
 
@@ -164,33 +168,30 @@ export default function Home() {
         throw new Error('Please provide transaction hash');
       }
 
-      // Fetch JSON metadata for display and transaction building
-      const jsonResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata`);
+      if (!blockfrostApiKey) {
+        throw new Error('Blockfrost project ID not configured. Please add it in Settings.');
+      }
 
+      const headers = { project_id: blockfrostApiKey };
+      const baseUrl = blockfrostUrl || `https://cardano-${network}.blockfrost.io/api/v0`;
+
+      const jsonResponse = await fetch(`${baseUrl}/txs/${txHash}/metadata`, { headers });
       if (!jsonResponse.ok) {
         const errorData = await jsonResponse.json().catch(() => ({}));
         throw new Error(errorData.message || `Blockfrost API error: ${jsonResponse.status}`);
       }
-
       const jsonMetadata = await jsonResponse.json();
 
       if (!jsonMetadata || jsonMetadata.length === 0) {
         throw new Error('No metadata found for this transaction');
       }
 
-      // Fetch CBOR metadata for hash calculation
-      const cborResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata/cbor`);
-
+      const cborResponse = await fetch(`${baseUrl}/txs/${txHash}/metadata/cbor`, { headers });
       if (!cborResponse.ok) {
         const errorData = await cborResponse.json().catch(() => ({}));
         throw new Error(errorData.message || `Blockfrost API error (CBOR): ${cborResponse.status}`);
       }
-
       const cborMetadataArray = await cborResponse.json();
-
-      if (!cborMetadataArray || cborMetadataArray.length === 0) {
-        throw new Error('No CBOR metadata found for this transaction');
-      }
 
       // Convert JSON metadata array to object
       const jsonMetadataObj: TransactionMetadata = {};
@@ -263,8 +264,8 @@ export default function Home() {
         setIsSodiumReady(true);
       }
 
-      // Use CBOR metadata for hashing
-      const hash = hashMetadata(cborMetadata);
+      // Use JSON metadata for hashing (matches Java's JSON → CBOR encode approach)
+      const hash = hashMetadata(metadata);
       setMetadataHash(hash);
       markStepCompleted(WorkflowStep.SHOW_METADATA);
       setCurrentStep(WorkflowStep.SHOW_METADATA);
@@ -372,7 +373,7 @@ export default function Home() {
       }
 
       // Initialize Blockfrost provider
-      const blockfrostProvider = new BlockfrostProvider(blockfrostUrl);
+      const blockfrostProvider = new BlockfrostProvider(blockfrostApiKey);
 
       // Build transaction with MeshTxBuilder
       const meshTxBuilder = new MeshTxBuilder({

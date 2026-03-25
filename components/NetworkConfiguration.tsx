@@ -10,14 +10,16 @@ import {
 } from '@/lib/network-config';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface NetworkConfigProps {
-  onConfigChange: (config: { network: CardanoNetwork; blockfrostUrl: string }) => void;
+  onConfigChange: (config: { network: CardanoNetwork; blockfrostUrl: string; blockfrostApiKey: string }) => void;
 }
 
 export default function NetworkConfiguration({ onConfigChange }: NetworkConfigProps) {
   const [network, setNetwork] = useState<CardanoNetwork>('mainnet');
+  const [blockfrostApiKey, setBlockfrostApiKey] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
   // Escape key handler
@@ -35,13 +37,21 @@ export default function NetworkConfiguration({ onConfigChange }: NetworkConfigPr
   useEffect(() => {
     const config = getCurrentNetworkConfig();
     setNetwork(config.network);
+    setBlockfrostApiKey(config.blockfrostApiKey);
   }, []);
 
   const handleNetworkChange = (newNetwork: CardanoNetwork) => {
     setNetwork(newNetwork);
-    const defaultConfig = DEFAULT_NETWORKS[newNetwork];
-    saveNetworkConfig(defaultConfig);
-    onConfigChange(defaultConfig);
+    const newConfig = { ...DEFAULT_NETWORKS[newNetwork], blockfrostApiKey };
+    saveNetworkConfig(newConfig);
+    onConfigChange(newConfig);
+  };
+
+  const handleApiKeyChange = (newKey: string) => {
+    setBlockfrostApiKey(newKey);
+    const newConfig = { ...DEFAULT_NETWORKS[network], blockfrostApiKey: newKey };
+    saveNetworkConfig(newConfig);
+    onConfigChange(newConfig);
   };
 
   return (
@@ -118,6 +128,18 @@ export default function NetworkConfiguration({ onConfigChange }: NetworkConfigPr
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Blockfrost API key */}
+              <div className="space-y-2">
+                <Label className="text-white/70 text-xs font-medium uppercase tracking-wider">Blockfrost Project ID</Label>
+                <Input
+                  type="password"
+                  value={blockfrostApiKey}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
+                  placeholder="mainnetXXXXXXXXXXXXXXXXXXXXXXXXX"
+                  className="bg-white/[0.06] border-white/[0.10] text-white placeholder:text-white/30 text-sm"
+                />
               </div>
 
             </div>
