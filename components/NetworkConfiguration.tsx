@@ -7,27 +7,17 @@ import {
   DEFAULT_NETWORKS,
   getCurrentNetworkConfig,
   saveNetworkConfig,
-  saveBlockfrostApiKey,
-  validateBlockfrostApiKey,
 } from '@/lib/network-config';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface NetworkConfigProps {
-  onConfigChange: (config: { network: CardanoNetwork; blockfrostUrl: string; blockfrostApiKey: string; explorerUrl: string }) => void;
+  onConfigChange: (config: { network: CardanoNetwork; blockfrostUrl: string }) => void;
 }
 
 export default function NetworkConfiguration({ onConfigChange }: NetworkConfigProps) {
   const [network, setNetwork] = useState<CardanoNetwork>('mainnet');
-  const [customMode, setCustomMode] = useState(false);
-  const [blockfrostUrl, setBlockfrostUrl] = useState('');
-  const [blockfrostApiKey, setBlockfrostApiKey] = useState('');
-  const [explorerUrl, setExplorerUrl] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
-  const [validationStatus, setValidationStatus] = useState<{ valid: boolean; error?: string } | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   // Escape key handler
@@ -45,67 +35,13 @@ export default function NetworkConfiguration({ onConfigChange }: NetworkConfigPr
   useEffect(() => {
     const config = getCurrentNetworkConfig();
     setNetwork(config.network);
-    setBlockfrostUrl(config.blockfrostUrl);
-    setBlockfrostApiKey(config.blockfrostApiKey);
-    setExplorerUrl(config.explorerUrl);
-
-    // Check if using custom URL
-    const defaultConfig = DEFAULT_NETWORKS[config.network];
-    setCustomMode(config.blockfrostUrl !== defaultConfig.blockfrostUrl);
   }, []);
 
   const handleNetworkChange = (newNetwork: CardanoNetwork) => {
     setNetwork(newNetwork);
-
-    if (!customMode) {
-      const defaultConfig = DEFAULT_NETWORKS[newNetwork];
-      setBlockfrostUrl(defaultConfig.blockfrostUrl);
-      setExplorerUrl(defaultConfig.explorerUrl);
-    }
-  };
-
-  const handleCustomModeToggle = () => {
-    const newCustomMode = !customMode;
-    setCustomMode(newCustomMode);
-
-    if (!newCustomMode) {
-      const defaultConfig = DEFAULT_NETWORKS[network];
-      setBlockfrostUrl(defaultConfig.blockfrostUrl);
-      setExplorerUrl(defaultConfig.explorerUrl);
-    }
-  };
-
-  const handleValidateAndSave = async () => {
-    setIsValidating(true);
-    setValidationStatus(null);
-
-    // Validate API key
-    const validation = await validateBlockfrostApiKey(blockfrostApiKey, blockfrostUrl);
-    setValidationStatus(validation);
-
-    if (validation.valid) {
-      // Save configuration
-      saveNetworkConfig({
-        network,
-        blockfrostUrl,
-        explorerUrl,
-      });
-
-      // Save API key to cookies
-      saveBlockfrostApiKey(blockfrostApiKey);
-
-      // Notify parent
-      onConfigChange({
-        network,
-        blockfrostUrl,
-        blockfrostApiKey,
-        explorerUrl,
-      });
-
-      setIsOpen(false);
-    }
-
-    setIsValidating(false);
+    const defaultConfig = DEFAULT_NETWORKS[newNetwork];
+    saveNetworkConfig(defaultConfig);
+    onConfigChange(defaultConfig);
   };
 
   return (
@@ -184,94 +120,6 @@ export default function NetworkConfiguration({ onConfigChange }: NetworkConfigPr
                 </div>
               </div>
 
-              {/* Custom mode toggle */}
-              <div>
-                <label className="flex items-center gap-2.5 cursor-pointer group">
-                  <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ${
-                    customMode ? 'bg-brand-primary' : 'bg-white/10'
-                  }`}>
-                    <motion.div
-                      className="w-4 h-4 rounded-full bg-white shadow-sm"
-                      animate={{ x: customMode ? 16 : 0 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    />
-                  </div>
-                  <span className="text-white/70 text-xs font-medium group-hover:text-white/80 transition-colors">
-                    Custom Blockfrost URL
-                  </span>
-                </label>
-              </div>
-
-              {/* Blockfrost URL */}
-              <div className="space-y-1.5">
-                <Label className="text-white/70 text-xs font-medium">Blockfrost API URL</Label>
-                <Input
-                  type="text"
-                  value={blockfrostUrl}
-                  onChange={(e) => setBlockfrostUrl(e.target.value)}
-                  disabled={!customMode}
-                  placeholder="https://cardano-mainnet.blockfrost.io/api/v0"
-                  className="h-9 text-xs bg-white/[0.07] border-white/[0.14] text-white placeholder:text-white/25 disabled:opacity-40 focus-ring"
-                />
-              </div>
-
-              {/* Explorer URL */}
-              <div className="space-y-1.5">
-                <Label className="text-white/70 text-xs font-medium">Explorer URL</Label>
-                <Input
-                  type="text"
-                  value={explorerUrl}
-                  onChange={(e) => setExplorerUrl(e.target.value)}
-                  disabled={!customMode}
-                  placeholder="https://cardanoscan.io"
-                  className="h-9 text-xs bg-white/[0.07] border-white/[0.14] text-white placeholder:text-white/25 disabled:opacity-40 focus-ring"
-                />
-              </div>
-
-              {/* API Key */}
-              <div className="space-y-1.5">
-                <Label className="text-white/70 text-xs font-medium">Blockfrost API Key</Label>
-                <Input
-                  type="password"
-                  value={blockfrostApiKey}
-                  onChange={(e) => setBlockfrostApiKey(e.target.value)}
-                  placeholder="Enter your Blockfrost API key"
-                  className="h-9 text-xs bg-white/[0.07] border-white/[0.14] text-white placeholder:text-white/25 focus-ring"
-                />
-                <p className="text-white/40 text-[0.65rem]">
-                  Get your API key at{' '}
-                  <a href="https://blockfrost.io" target="_blank" rel="noopener noreferrer" className="text-brand-primary/70 hover:text-brand-primary transition-colors">
-                    blockfrost.io
-                  </a>
-                </p>
-              </div>
-
-              {/* Validation status */}
-              {validationStatus && (
-                <div className={`p-3 rounded-lg text-xs font-medium ${
-                  validationStatus.valid
-                    ? 'bg-brand-success/[0.12] border border-brand-success/20 text-brand-success'
-                    : 'bg-brand-error/[0.12] border border-brand-error/20 text-brand-error'
-                }`}>
-                  {validationStatus.valid ? 'API key validated successfully' : validationStatus.error}
-                </div>
-              )}
-
-              {/* Save button */}
-              <Button
-                onClick={handleValidateAndSave}
-                disabled={isValidating || !blockfrostApiKey}
-                className="w-full gradient-button text-white font-semibold h-10 text-sm shadow-[0_4px_16px_rgba(0,132,255,0.2)] disabled:opacity-50 disabled:shadow-none"
-              >
-                {isValidating ? (
-                  <>
-                    <span className="spinner-icon" />
-                    Validating...
-                  </>
-                ) : (
-                  'Validate & Save'
-                )}
-              </Button>
             </div>
           </motion.div>
           </>
