@@ -7,9 +7,8 @@ import { WorkflowStep, TransactionMetadata } from '@/lib/types';
 import { getSignifyUrl } from '@/lib/config';
 import {
   CardanoNetwork,
+  EXPLORER_URLS,
   getCurrentNetworkConfig,
-  getBlockfrostApiKey,
-  saveBlockfrostApiKey
 } from '@/lib/network-config';
 import { getPreviousStep, isStepCompleted } from '@/lib/workflow-state';
 import NetworkConfiguration from '@/components/NetworkConfiguration';
@@ -41,7 +40,6 @@ export default function Home() {
   const [network, setNetwork] = useState<CardanoNetwork>('mainnet');
   const [blockfrostUrl, setBlockfrostUrl] = useState('');
   const [blockfrostApiKey, setBlockfrostApiKey] = useState('');
-  const [explorerUrl, setExplorerUrl] = useState('');
 
   const defaultSignifyUrl = getSignifyUrl();
 
@@ -51,7 +49,6 @@ export default function Home() {
     setNetwork(config.network);
     setBlockfrostUrl(config.blockfrostUrl);
     setBlockfrostApiKey(config.blockfrostApiKey);
-    setExplorerUrl(config.explorerUrl);
   }, []);
 
   // Wallet state
@@ -135,12 +132,10 @@ export default function Home() {
     network: CardanoNetwork;
     blockfrostUrl: string;
     blockfrostApiKey: string;
-    explorerUrl: string;
   }) => {
     setNetwork(config.network);
     setBlockfrostUrl(config.blockfrostUrl);
     setBlockfrostApiKey(config.blockfrostApiKey);
-    setExplorerUrl(config.explorerUrl);
     setSuccess('Network configuration updated successfully!');
   };
 
@@ -169,51 +164,34 @@ export default function Home() {
       setLoading(true);
       setError('');
 
-      if (!blockfrostApiKey) {
-        throw new Error('Please configure Blockfrost API key in network settings');
-      }
-
       if (!txHash) {
         throw new Error('Please provide transaction hash');
       }
 
-      // Fetch JSON metadata for display and transaction building
-      const jsonResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata`, {
-        method: 'GET',
-        headers: {
-          'project_id': blockfrostApiKey,
-        },
-      });
+      if (!blockfrostApiKey) {
+        throw new Error('Blockfrost project ID not configured. Please add it in Settings.');
+      }
 
+      const headers = { project_id: blockfrostApiKey };
+      const baseUrl = blockfrostUrl || `https://cardano-${network}.blockfrost.io/api/v0`;
+
+      const jsonResponse = await fetch(`${baseUrl}/txs/${txHash}/metadata`, { headers });
       if (!jsonResponse.ok) {
         const errorData = await jsonResponse.json().catch(() => ({}));
         throw new Error(errorData.message || `Blockfrost API error: ${jsonResponse.status}`);
       }
-
       const jsonMetadata = await jsonResponse.json();
 
       if (!jsonMetadata || jsonMetadata.length === 0) {
         throw new Error('No metadata found for this transaction');
       }
 
-      // Fetch CBOR metadata for hash calculation
-      const cborResponse = await fetch(`${blockfrostUrl}/txs/${txHash}/metadata/cbor`, {
-        method: 'GET',
-        headers: {
-          'project_id': blockfrostApiKey,
-        },
-      });
-
+      const cborResponse = await fetch(`${baseUrl}/txs/${txHash}/metadata/cbor`, { headers });
       if (!cborResponse.ok) {
         const errorData = await cborResponse.json().catch(() => ({}));
         throw new Error(errorData.message || `Blockfrost API error (CBOR): ${cborResponse.status}`);
       }
-
       const cborMetadataArray = await cborResponse.json();
-
-      if (!cborMetadataArray || cborMetadataArray.length === 0) {
-        throw new Error('No CBOR metadata found for this transaction');
-      }
 
       // Convert JSON metadata array to object
       const jsonMetadataObj: TransactionMetadata = {};
@@ -286,8 +264,8 @@ export default function Home() {
         setIsSodiumReady(true);
       }
 
-      // Use CBOR metadata for hashing
-      const hash = hashMetadata(cborMetadata);
+      // Use JSON metadata for hashing (matches Java's JSON → CBOR encode approach)
+      const hash = hashMetadata(metadata);
       setMetadataHash(hash);
       markStepCompleted(WorkflowStep.SHOW_METADATA);
       setCurrentStep(WorkflowStep.SHOW_METADATA);
@@ -377,10 +355,6 @@ export default function Home() {
 
       if (!walletApi || !cip170Metadata) {
         throw new Error('Wallet not connected or metadata not ready');
-      }
-
-      if (!blockfrostApiKey) {
-        throw new Error('Blockfrost API key not configured');
       }
 
       // Get wallet address and UTxOs
@@ -911,7 +885,7 @@ export default function Home() {
                   </div>
 
                   <a
-                    href={`${explorerUrl}/transaction/${publishedTxHash}`}
+                    href={`${EXPLORER_URLS[network]}/transaction/${publishedTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center w-full h-11 rounded-lg border border-brand-secondary/30 text-brand-secondary text-sm font-semibold hover:bg-brand-secondary/10 transition-all duration-200 gap-2"
