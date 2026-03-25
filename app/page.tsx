@@ -319,7 +319,7 @@ export default function Home() {
       await client.connect();
 
       // Create interaction event with the hash
-      const interactionResult = await client.identifiers().interact(identifierName, [metadataHash]);
+      const interactionResult = await client.identifiers().interact(identifierName, metadataHash);
       console.log('Interaction event created:', interactionResult);
 
       // Get the sequence number from the interaction
