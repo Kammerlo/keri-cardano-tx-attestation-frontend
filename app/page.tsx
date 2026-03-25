@@ -494,7 +494,7 @@ export default function Home() {
         {/* Left: Cardano logo */}
         <div className="flex items-center gap-2">
           <img src="/cardano-logo-white.png" alt="Cardano" className="h-8 w-auto" />
-          <a href="https://github.com/cardano-foundation/CIPs/tree/master/CIP-0170" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+          <a href="https://cips.cardano.org/cip/CIP-0170" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
             <Badge variant="outline" className="bg-brand-primary/10 text-brand-primary border-brand-primary/20 text-xs font-semibold hover:bg-brand-primary/20 transition-colors">
               CIP-0170
             </Badge>
